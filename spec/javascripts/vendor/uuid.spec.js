@@ -2,7 +2,7 @@ if(!blackbox) { var blackbox = require('../../../index'); };
 if(!sinon) { var sinon = require('sinon'); };
 if(!chai) { var chai = require('chai'); };
 
-var assert = chai.assert;
+var expect = chai.expect;
 
 describe('uuid', function(){
 
@@ -13,7 +13,7 @@ describe('uuid', function(){
   describe('generation', function(){
 
     it('should return RFC4122 compatible string', function() {
-      assert.length(this.uuid(), 36);
+      expect(this.uuid()).to.have.length(36);
     });
 
   });

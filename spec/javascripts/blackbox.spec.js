@@ -4,6 +4,7 @@ if(!chai) { var chai = require('chai'); };
 if(!window) { var window = require('window'); };
 
 var assert = chai.assert;
+var expect = chai.expect;
 
 describe('Blackbox', function(){
 
@@ -74,12 +75,13 @@ describe('Blackbox', function(){
     });
 
     it('should clear queued events', function() {
+      var expect = chai.expect;
       var sut = new blackbox();
       sut.write('something');
       sut.write('something');
-      assert.length(sut.queue(), 2);
+      expect(sut.queue()).to.have.length(2);
       sut.clearQueue();
-      assert.length(sut.queue(), 0);
+      expect(sut.queue()).to.have.length(0);
     });
 
     it('should remove persisted queue from localStorage', function() {
@@ -196,9 +198,9 @@ describe('Blackbox', function(){
       sut.send();
 
       // Asserts successful flush clears queue
-      assert.length(sut.queue(), 2);
+      expect(sut.queue()).to.have.length(2);
       doneSpy.callArg(0);
-      assert.length(sut.queue(), 0);
+      expect(sut.queue()).to.have.length(0);
 
       // Asserts enqueue next flush
       sinon.assert.calledOnce(flushSpy);
@@ -340,7 +342,7 @@ describe('Blackbox', function(){
 
           this.clock.tick(sut.timeout);
 
-          assert.length(this.sandbox.server.requests, 1);
+          expect(this.sandbox.server.requests).to.have.length(1);
 
           var request = this.sandbox.server.requests[0];
 
@@ -362,7 +364,8 @@ describe('Blackbox', function(){
           this.sandbox.server.respondWith([200, {}, '']);
           this.sandbox.server.respond();
 
-          assert.length(sut.queue(), 0, 'Should have 0 after server responds with 200');
+          // Should have 0 after server responds with 200
+          expect(sut.queue()).to.have.length(0);
         });
 
         it('should retain logs upon API failure', function() {
@@ -371,16 +374,18 @@ describe('Blackbox', function(){
           sut.write('event-1');
           sut.write('event-2');
 
-          assert.length(sut.queue(), 2);
+          expect(sut.queue()).to.have.length(2);
 
           this.clock.tick(sut.timeout);
 
-          assert.length(sut.queue(), 2, 'Should have 2 while waiting for server to respond');
+          // Should have 2 while waiting for server to respond
+          expect(sut.queue()).to.have.length(2);
 
           this.sandbox.server.respondWith([500, {}, '']);
           this.sandbox.server.respond();
 
-          assert.length(sut.queue(), 2, 'Should have 2 after server responds with 500');
+          // Should have 2 after server responds with 500
+          expect(sut.queue()).to.have.length(2);
         });
 
       });
