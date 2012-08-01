@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+
+var Glue = require('gluejs');
+var fs = require('fs');
+
+new Glue()
+  .basepath('lib') // output paths are relative to this
+  .include('lib')
+  .replace('jquery', 'window.jQuery')
+  .replace('window', 'window')
+  .main('blackbox.js')
+  .export('blackbox')
+  .watch(function (err, txt) {
+    fs.writeFile('./blackbox.js', txt);
+  });

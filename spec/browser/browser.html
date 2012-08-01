@@ -1,0 +1,28 @@
+<html>
+<head>
+  <title>Blackbox Tests</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="stylesheet" href="../../node_modules/mocha/mocha.css" />
+  <script src="jquery-1.7.1.js"></script>
+  <script src="sinon-1.3.2.js"></script>
+  <script src="chai.js"></script>
+  <script src="../../node_modules/mocha/mocha.js"></script>
+  <script>
+    mocha.setup({
+      ui: 'bdd',
+      globals: ["setTimeout", "setInterval", "clearTimeout", "clearInterval", "XMLHttpRequest"]
+    });
+  </script>
+  <script src="../../blackbox.js"></script>
+  <script src="../javascripts/blackbox.spec.js"></script>
+  <script src="../javascripts/vendor/uuid.spec.js"></script>
+  <script>
+    $(function(){
+      mocha.run();
+    });
+  </script>
+</head>
+<body>
+  <div id="mocha"></div>
+</body>
+</html>
