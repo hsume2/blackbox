@@ -48,7 +48,7 @@ describe('Blackbox', function(){
     it('should push to queue', function() {
       var sut = new blackbox();
       sut.write('this is a message');
-      assert.include(sut.queue(), 'this is a message');
+      expect(sut.queue.messages).to.include('this is a message');
     });
 
     it('should persist queue in localStorage', function() {
@@ -59,6 +59,59 @@ describe('Blackbox', function(){
       assert.equal(window.localStorage.getItem('blackbox'), JSON.stringify({
         'this-is-a-uniqe-id': ["event-1","event-2"]
       }));
+    });
+
+    it('should perform initial trigger', function() {
+      var sut = new blackbox();
+      var triggerStub = sinon.stub(sut, 'trigger');
+
+      sinon.assert.notCalled(triggerStub);
+
+      sut.write('this is a message');
+
+      sinon.assert.calledOnce(triggerStub);
+    });
+
+  });
+
+  describe('#writeMeta()', function(){
+
+    before(function() {
+      this.uuid = blackbox._uuid();
+      blackbox._uuid(function() { return 'this-is-a-uniqe-id'; });
+    });
+
+    after(function() {
+      blackbox._uuid(this.uuid);
+    });
+
+    it('should push to queue', function() {
+      var sut = new blackbox();
+      sut.writeMeta('voice', 'info', ['#login', { user: 11 }]);
+      expect(sut.queue.messages[0][0]).to.equal('voice');
+      expect(sut.queue.messages[0][1]).to.equal('info');
+      expect(sut.queue.messages[0][2]).to.deep.equal(['#login', { user: 11 }]);
+    });
+
+    it('should persist queue in localStorage', function() {
+      var sut = new blackbox();
+      sut.writeMeta('voice', 'info', ['#login']);
+      sut.writeMeta('voice', 'info', ['#logout']);
+
+      assert.equal(window.localStorage.getItem('blackbox'), JSON.stringify({
+        'this-is-a-uniqe-id': [["voice","info",["#login"]],["voice","info",["#logout"]]]
+      }));
+    });
+
+    it('should perform initial trigger', function() {
+      var sut = new blackbox();
+      var triggerStub = sinon.stub(sut, 'trigger');
+
+      sinon.assert.notCalled(triggerStub);
+
+      sut.writeMeta('voice', 'info', ['#login']);
+
+      sinon.assert.calledOnce(triggerStub);
     });
 
   });
@@ -79,9 +132,9 @@ describe('Blackbox', function(){
       var sut = new blackbox();
       sut.write('something');
       sut.write('something');
-      expect(sut.queue()).to.have.length(2);
+      expect(sut.queue).to.have.length(2);
       sut.clearQueue();
-      expect(sut.queue()).to.have.length(0);
+      expect(sut.queue).to.have.length(0);
     });
 
     it('should remove persisted queue from localStorage', function() {
@@ -105,62 +158,79 @@ describe('Blackbox', function(){
 
   });
 
-  describe('#flush()', function(){
+  describe('#flush()', function() {
 
-    it('should flush logs after timeout', function() {
-      var sut = new blackbox();
-      var spy = sinon.spy(sut, '_internalFlush');
-      sinon.stub(sut, 'send');
-
-      sinon.assert.notCalled(spy);
-
-      sut.write('something');
-
-      sinon.assert.notCalled(spy);
-      this.clock.tick(sut.timeout / 2);
-      sinon.assert.notCalled(spy);
-
-      this.clock.tick(sut.timeout / 2);
-
-      sinon.assert.calledOnce(spy);
-    });
-
-  });
-
-  describe('#_internalFlush()', function(){
-
-    it('should #send', function() {
+    it('should send logs after timeout', function() {
       var sut = new blackbox();
       var stub = sinon.stub(sut, 'send');
+      var flushSpy = sinon.spy(sut, 'flush');
+      sut.queue.push('something');
 
       sinon.assert.notCalled(stub);
+      sinon.assert.notCalled(flushSpy);
 
-      sut.write('something');
+      sut.flush();
 
       sinon.assert.notCalled(stub);
+      sinon.assert.calledOnce(flushSpy);
 
-      sut._internalFlush();
+      this.clock.tick(sut.timeout / 2);
 
-      sinon.assert.calledWith(stub);
+      sinon.assert.notCalled(stub);
+      sinon.assert.calledOnce(flushSpy);
+
+      this.clock.tick(sut.timeout / 2); // Timeout reached
+
+      sinon.assert.calledOnce(stub);
+      sinon.assert.calledOnce(flushSpy);
     });
 
-    it('should do nothing and wait for next flush if queue is empty', function() {
+    it('should not send logs and wait for next flush if queue is empty', function() {
       var sut = new blackbox();
-      var send = sinon.spy(sut, 'send');
-      var flush = sinon.spy(sut, 'flush');
+      var stub = sinon.stub(sut, 'send');
+      var flushSpy = sinon.spy(sut, 'flush');
 
-      sinon.assert.notCalled(send);
-      sinon.assert.notCalled(flush);
+      sinon.assert.notCalled(stub);
+      sinon.assert.notCalled(flushSpy);
 
-      sut._internalFlush();
+      sut.flush();
 
-      sinon.assert.notCalled(send);
-      sinon.assert.calledOnce(flush);
+      sinon.assert.notCalled(stub);
+      sinon.assert.calledOnce(flushSpy);
+
+      this.clock.tick(sut.timeout / 2);
+
+      sinon.assert.notCalled(stub);
+      sinon.assert.calledOnce(flushSpy);
+
+      this.clock.tick(sut.timeout / 2); // Timeout reached
+
+      sinon.assert.notCalled(stub);
+      sinon.assert.calledTwice(flushSpy);
     });
 
   });
 
-  describe('#send()', function(){
+  describe('#trigger()', function() {
+
+    it('should trigger once', function() {
+      var sut = new blackbox();
+      var flushStub = sinon.stub(sut, 'flush');
+
+      sinon.assert.notCalled(flushStub);
+
+      sut.trigger();
+
+      sinon.assert.calledOnce(flushStub);
+
+      sut.trigger();
+
+      sinon.assert.calledOnce(flushStub);
+    });
+
+  });
+
+  describe('#send()', function() {
 
     before(function() {
       this.uuid = blackbox._uuid();
@@ -180,16 +250,13 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: {
-            messages: ['event-1', 'event-2'],
-            id: 'this-is-a-uniqe-id'
-          }
+          payload: ['event-1', 'event-2']
         }),
         dataType: "json",
         type: "POST",
         url: "/blackbox"
       }).once().returns(ajaxPromise);
-      var sut = new blackbox({ jQuery: fakeQuery });
+      var sut = new blackbox().jquery({ jQuery: fakeQuery });
       var flushSpy = sinon.spy(sut, 'flush');
 
       sut.write('event-1');
@@ -198,9 +265,9 @@ describe('Blackbox', function(){
       sut.send();
 
       // Asserts successful flush clears queue
-      expect(sut.queue()).to.have.length(2);
+      expect(sut.queue).to.have.length(2);
       doneSpy.callArg(0);
-      expect(sut.queue()).to.have.length(0);
+      expect(sut.queue).to.have.length(0);
 
       // Asserts enqueue next flush
       sinon.assert.calledOnce(flushSpy);
@@ -212,7 +279,7 @@ describe('Blackbox', function(){
 
   });
 
-  describe('#sendFromStorage()', function(){
+  describe('#sendFromStorage()', function() {
 
     before(function() {
       this.uuid = blackbox._uuid();
@@ -232,27 +299,18 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: [
-            {
-              id: 'this-is-a-uniqe-id',
-              messages: ['event-1']
-            },
-            {
-              id: 'this-is-another-uniqe-id',
-              messages: ['event-2']
-            }
-          ]
+          payload: ['event-1', 'event-2']
         }),
         dataType: "json",
         type: "POST",
         url: "/blackbox"
       }).once().returns(ajaxPromise);
-      var sut = new blackbox({ jQuery: fakeQuery });
+      var sut = new blackbox().jquery({ jQuery: fakeQuery });
       var flushSpy = sinon.spy(sut, 'flush');
 
       window.localStorage.setItem('blackbox', JSON.stringify({
         'this-is-a-uniqe-id': ['event-1'],
-        'this-is-another-uniqe-id': ['event-2']
+        'this-is-another-unique-id': ['event-2']
       }));
 
       sut.sendFromStorage();
@@ -270,7 +328,7 @@ describe('Blackbox', function(){
       var alwaysSpy = sinon.spy(ajaxPromise, 'always');
 
       var expectation = sinon.mock(fakeQuery).expects('ajax').never();
-      var sut = new blackbox({ jQuery: fakeQuery });
+      var sut = new blackbox().jquery({ jQuery: fakeQuery });
       var flushSpy = sinon.spy(sut, 'flush');
 
       sut.sendFromStorage();
@@ -287,16 +345,7 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: [
-            {
-              id: 'this-is-a-uniqe-id',
-              messages: ['event-1']
-            },
-            {
-              id: 'this-is-another-uniqe-id',
-              messages: ['event-2']
-            }
-          ]
+          payload: ['event-1', 'event-2']
         }),
         dataType: "json",
         type: "POST",
@@ -308,7 +357,7 @@ describe('Blackbox', function(){
         'this-is-another-uniqe-id': ['event-2']
       }));
 
-      var sut = new blackbox({ jQuery: fakeQuery });
+      var sut = new blackbox().jquery({ jQuery: fakeQuery });
       var flushSpy = sinon.spy(sut, 'flush');
 
       doneSpy.callArg(0);
@@ -332,10 +381,10 @@ describe('Blackbox', function(){
         blackbox._uuid(this.uuid);
       });
 
-      describe('#send()', function(){
+      describe('#send()', function() {
 
         it('should POST to API end-point', function() {
-          var sut = new blackbox({ url: '/log/blackbox' });
+          var sut = new blackbox().jquery({ url: '/log/blackbox' });
 
           sut.write('event-1');
           sut.write('event-2');
@@ -355,37 +404,34 @@ describe('Blackbox', function(){
           assert.equal(request.requestHeaders['X-Requested-With'], 'XMLHttpRequest');
 
           assert.equal(request.requestBody, JSON.stringify({
-            payload: {
-              messages: ['event-1', 'event-2'],
-              id: 'this-is-a-uniqe-id'
-            }
+            payload: ['event-1', 'event-2']
           }));
 
           this.sandbox.server.respondWith([200, {}, '']);
           this.sandbox.server.respond();
 
           // Should have 0 after server responds with 200
-          expect(sut.queue()).to.have.length(0);
+          expect(sut.queue).to.have.length(0);
         });
 
         it('should retain logs upon API failure', function() {
-          var sut = new blackbox();
+          var sut = new blackbox().jquery();
 
           sut.write('event-1');
           sut.write('event-2');
 
-          expect(sut.queue()).to.have.length(2);
+          expect(sut.queue).to.have.length(2);
 
           this.clock.tick(sut.timeout);
 
           // Should have 2 while waiting for server to respond
-          expect(sut.queue()).to.have.length(2);
+          expect(sut.queue).to.have.length(2);
 
           this.sandbox.server.respondWith([500, {}, '']);
           this.sandbox.server.respond();
 
           // Should have 2 after server responds with 500
-          expect(sut.queue()).to.have.length(2);
+          expect(sut.queue).to.have.length(2);
         });
 
       });

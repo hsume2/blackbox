@@ -1,9 +1,168 @@
 (function(){function require(p, context, parent){ context || (context = 0); var path = require.resolve(p, context), mod = require.modules[context][path]; if (!mod) throw new Error('failed to require "' + p + '" from ' + parent); if(mod.context) { context = mod.context; path = mod.main; mod = require.modules[context][mod.main]; } if (!mod.exports) { mod.exports = {}; mod.call(mod.exports, mod, mod.exports, require.relative(path, context)); } return mod.exports;}require.modules = [{}];require.resolve = function(path, context){ var orig = path, reg = path + '.js', index = path + '/index.js'; return require.modules[context][reg] && reg || require.modules[context][index] && index || orig;};require.relative = function(relativeTo, context) { return function(p){ if ('.' != p.charAt(0)) return require(p); var path = relativeTo.split('/') , segs = p.split('/'); path.pop(); for (var i = 0; i < segs.length; i++) { var seg = segs[i]; if ('..' == seg) path.pop(); else if ('.' != seg) path.push(seg); } return require(path.join('/'), context, relativeTo); };};
 require.modules[0]["jquery"] = { exports: window.jQuery };
 require.modules[0]["window"] = { exports: window };
-require.modules[0]['blackbox.js'] = function(module, exports, require){var uuid = require('./vendor/uuid');
-var win = require('window');
-var storage = win.localStorage;
+require.modules[0]['blackbox.js'] = function(module, exports, require){var Storage = require('./blackbox/storage');
+var Queue = require('./blackbox/queue');
+var JqueryBackend = require('./blackbox/jquery_backend');
+
+var Blackbox = (function() {
+
+  function Blackbox(options) {
+    this.options = options || {};
+    this.timeout = this.options.timeout || 5000;
+    this.queue = new Queue();
+  }
+
+  Blackbox.prototype.write = function(str) {
+    this.queue.push(str);
+    this.trigger();
+  };
+
+  Blackbox.prototype.writeMeta = function(name, level, args) {
+    this.queue.push([name, level, args]);
+    this.trigger();
+  };
+
+  Blackbox.prototype.clearQueue = function() {
+    if(this.queue) {
+      this.queue.clear();
+      this.queue = new Queue();
+    }
+  };
+
+  Blackbox.prototype.flush = function() {
+    var self = this;
+    setTimeout(function() {
+      var q = self.queue;
+      if(q.length > 0) {
+        self.send();
+      } else {
+        self.flush();
+      }
+    }, this.timeout);
+  };
+
+  Blackbox.prototype.trigger = function() {
+    if(this.isRunning) { return; }
+    this.flush();
+    this.isRunning = true;
+  };
+
+  Blackbox.prototype.send = function() {
+    var self = this;
+    this._post(this.queue.export()).done(function() {
+      self.clearQueue();
+    }).always(function() {
+      self.flush();
+    });
+  };
+
+  Blackbox.prototype.jquery = function(options) {
+    this.backend = new JqueryBackend(options);
+    this.sendFromStorage();
+    return this;
+  };
+
+  Blackbox.prototype.sendFromStorage = function() {
+    var storage = new Storage('blackbox');
+    var all = storage.all();
+    var messages = [];
+
+    for(var key in all) {
+      var value = all[key];
+      for (var i = 0; i < value.length; i++) {
+        var message = value[i];
+        messages.push(message);
+      }
+    }
+
+    if(messages.length < 1) return;
+
+    this._post(messages).done(function() {
+      for(var key in all) {
+        storage.del(key);
+      }
+    });
+  };
+
+  Blackbox.prototype._post = function(messages) { return this.backend.post(messages); };
+
+  return Blackbox;
+
+}());
+
+Blackbox._uuid = Queue._uuid;
+
+module.exports = Blackbox;
+};
+require.modules[0]['blackbox/jquery_backend.js'] = function(module, exports, require){var JqueryBackend = (function() {
+
+  function JqueryBackend(options) {
+    this.options = options || {};
+    this.url = this.options.url || '/blackbox';
+    this.jQuery = this.options.jQuery || require('jquery');
+  }
+
+  JqueryBackend.prototype.post = function(messages) {
+    if(!this.jQuery) { throw('jQuery is required!'); };
+
+    return this.jQuery.ajax({
+      url: this.url,
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ payload: messages }),
+      dataType: 'json'
+    });
+  };
+
+  return JqueryBackend;
+
+}());
+
+module.exports = JqueryBackend;
+};
+require.modules[0]['blackbox/queue.js'] = function(module, exports, require){var uuid = require('../vendor/uuid');
+
+var Storage = require('./storage');
+
+var Queue = (function() {
+
+  function Queue() {
+    this.messages = [];
+    this.length = 0;
+    this.id = uuid();
+  }
+
+  Queue.prototype.push = function(str) {
+    this.messages.push(str);
+    this.length = this.messages.length;
+    this.storage = new Storage('blackbox');
+    this.storage.set(this.id, this.messages);
+  };
+
+  Queue.prototype.clear = function() {
+    this.storage.del(this.id);
+  };
+
+  Queue.prototype.export = function() {
+    return this.messages;
+  };
+
+  return Queue;
+
+}());
+
+Queue._uuid = function(backend) {
+  if(backend) {
+    uuid = backend;
+  } else {
+    return uuid;
+  }
+};
+
+module.exports = Queue;
+};
+require.modules[0]['blackbox/storage.js'] = function(module, exports, require){var win = require('window');
 
 var Storage = (function() {
   function Storage(name) { this.name = name; }
@@ -41,152 +200,49 @@ var Storage = (function() {
   return Storage;
 }());
 
-var Queue = (function() {
-
-  function Queue() {
-    this.messages = [];
-    this.length = 0;
-    this.id = uuid();
-  }
-
-  Queue.prototype.push = function(str) {
-    this.messages.push(str);
-    this.length = this.messages.length;
-    this.storage = new Storage('blackbox');
-    this.storage.set(this.id, this.messages);
-  };
-
-  Queue.prototype.clear = function() {
-    this.storage.del(this.id);
-  };
-
-  Queue.prototype.export = function() {
-    return JSON.stringify({
-      payload: {
-        messages: this.messages,
-        id: this.id
-      }
-    });
-  };
-
-  return Queue;
-
-}());
-
-var Blackbox = (function() {
-
-  function Blackbox(options) {
-    this.options = options || {};
-    this.timeout = this.options.timeout || 5000;
-    this.sendFromStorage();
-  }
-
-  Blackbox.prototype.write = function(str) {
-    this.queue().push(str);
-    this.trigger();
-  };
-
-  Blackbox.prototype.queue = function() {
-    if(!this._queue) {
-      this._queue = new Queue();
-    }
-    return this._queue;
-  };
-
-  Blackbox.prototype.clearQueue = function() {
-    if(this._queue) {
-      this._queue.clear();
-      this._queue = new Queue();
-    }
-  };
-
-  Blackbox.prototype.flush = function() {
-    var self = this;
-    setTimeout(function() {
-      self._internalFlush();
-    }, this.timeout);
-  };
-
-  Blackbox.prototype._internalFlush = function() {
-    var q = this.queue();
-    if(q.length > 0) {
-      this.send();
-    } else {
-      this.flush();
-    }
-  };
-
-  Blackbox.prototype.trigger = function() {
-    if(this.isRunning) { return; }
-    this.flush();
-    this.isRunning = true;
-  };
-
-  Blackbox.prototype.send = function() {
-    var self = this;
-    this._post(this.queue().export()).done(function() {
-      self.clearQueue();
-    }).always(function() {
-      self.flush();
-    });
-  };
-
-  Blackbox.prototype._post = function(data) {
-    var jQ = this._jQuery();
-    if(!jQ) { throw('jQuery is required!'); };
-
-    return jQ.ajax({
-      url: this._url(),
-      type: 'POST',
-      contentType: 'application/json',
-      data: data,
-      dataType: 'json'
-    });
-  };
-
-  Blackbox.prototype.sendFromStorage = function() {
-    var storage = new Storage('blackbox');
-    var all = storage.all();
-    var data = [];
-
-    for(var key in all) {
-      var value = all[key];
-      data.push({
-        id: key,
-        messages: value
-      });
-    }
-
-    if(data.length < 1) return;
-
-    this._post(JSON.stringify({ payload: data })).done(function() {
-      for(var key in all) {
-        storage.del(key);
-      }
-    });
-  };
-
-  Blackbox.prototype._jQuery = function() {
-    return this.options.jQuery || require('jquery');
-  };
-
-  Blackbox.prototype._url = function() {
-    return this.options.url || '/blackbox';
-  };
-
-  return Blackbox;
-
-}());
-
-Blackbox._uuid = function(backend) {
-  if(backend) {
-    uuid = backend;
-  } else {
-    return uuid;
-  }
+module.exports = Storage;
 };
+require.modules[0]['storage.js'] = function(module, exports, require){var win = require('window');
 
-module.exports = Blackbox;
+var Storage = (function() {
+
+  function Storage(name) { this.name = name; }
+
+  Storage.prototype.set = function(key, value) {
+    var stored = win.localStorage.getItem(this.name);
+    if(stored) {
+      stored = JSON.parse(stored);
+    } else {
+      stored = {};
+    }
+    stored[key] = value;
+    win.localStorage.setItem(this.name, JSON.stringify(stored));
+  };
+
+  Storage.prototype.del = function(key) {
+    var stored = win.localStorage.getItem(this.name);
+    if(stored) {
+      stored = JSON.parse(stored);
+      delete stored[key];
+      win.localStorage.setItem(this.name, JSON.stringify(stored));
+    }
+  };
+
+  Storage.prototype.all = function() {
+    var stored = win.localStorage.getItem(this.name);
+    if(stored) {
+      stored = JSON.parse(stored);
+      return stored;
+    } else {
+      return {};
+    }
+  };
+
+  return Storage;
+
+}());
+
+module.exports = Storage;
 };
 require.modules[0]['vendor/uuid.js'] = function(module, exports, require){var uuid = (function() {
   /*
