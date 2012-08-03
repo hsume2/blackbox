@@ -37,12 +37,12 @@ describe('Blackbox', function(){
   describe('#write()', function(){
 
     before(function() {
-      this.uuid = blackbox._uuid();
-      blackbox._uuid(function() { return 'this-is-a-uniqe-id'; });
+      this.uuid = blackbox.Queue._uuid();
+      blackbox.Queue._uuid(function() { return 'this-is-a-uniqe-id'; });
     });
 
     after(function() {
-      blackbox._uuid(this.uuid);
+      blackbox.Queue._uuid(this.uuid);
     });
 
     it('should push to queue', function() {
@@ -77,12 +77,12 @@ describe('Blackbox', function(){
   describe('#writeMeta()', function(){
 
     before(function() {
-      this.uuid = blackbox._uuid();
-      blackbox._uuid(function() { return 'this-is-a-uniqe-id'; });
+      this.uuid = blackbox.Queue._uuid();
+      blackbox.Queue._uuid(function() { return 'this-is-a-uniqe-id'; });
     });
 
     after(function() {
-      blackbox._uuid(this.uuid);
+      blackbox.Queue._uuid(this.uuid);
     });
 
     it('should push to queue', function() {
@@ -119,12 +119,12 @@ describe('Blackbox', function(){
   describe('#clearQueue()', function() {
 
     before(function() {
-      this.uuid = blackbox._uuid();
-      blackbox._uuid(function() { return 'this-is-a-uniqe-id'; });
+      this.uuid = blackbox.Queue._uuid();
+      blackbox.Queue._uuid(function() { return 'this-is-a-uniqe-id'; });
     });
 
     after(function() {
-      blackbox._uuid(this.uuid);
+      blackbox.Queue._uuid(this.uuid);
     });
 
     it('should clear queued events', function() {
@@ -146,7 +146,7 @@ describe('Blackbox', function(){
         'this-is-a-uniqe-id': ["event-1","event-2"]
       }));
 
-      blackbox._uuid(function() { return 'this-is-another-uniqe-id'; });
+      blackbox.Queue._uuid(function() { return 'this-is-another-uniqe-id'; });
 
       sut.clearQueue();
       sut.write('event-3');
@@ -233,15 +233,6 @@ describe('Blackbox', function(){
   // TODO: This should expect post on backend. Then we can assert message are Message objects
   describe('#send()', function() {
 
-    before(function() {
-      this.uuid = blackbox._uuid();
-      blackbox._uuid(function() { return 'this-is-a-uniqe-id'; });
-    });
-
-    after(function() {
-      blackbox._uuid(this.uuid);
-    });
-
     it('should POST to API end-point', function() {
       var fakeQuery = { ajax: function() {} };
       var ajaxPromise = { done: function() { return ajaxPromise; }, always: function() { return ajaxPromise; } };
@@ -283,15 +274,6 @@ describe('Blackbox', function(){
 
   // TODO: This should expect post on backend. Then we can assert message are Message objects
   describe('#sendFromStorage()', function() {
-
-    before(function() {
-      this.uuid = blackbox._uuid();
-      blackbox._uuid(function() { return 'this-is-a-uniqe-id'; });
-    });
-
-    after(function() {
-      blackbox._uuid(this.uuid);
-    });
 
     it('should POST stored logs to API end-point', function() {
       var fakeQuery = { ajax: function() {} };
@@ -375,15 +357,6 @@ describe('Blackbox', function(){
   if(window && window.jQuery) {
 
     describe('Live Browser', function() {
-
-      before(function() {
-        this.uuid = blackbox._uuid();
-        blackbox._uuid(function() { return 'this-is-a-uniqe-id'; });
-      });
-
-      after(function() {
-        blackbox._uuid(this.uuid);
-      });
 
       describe('#send()', function() {
 

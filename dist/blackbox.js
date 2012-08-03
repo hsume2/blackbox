@@ -96,9 +96,14 @@ var Blackbox = (function() {
 
 }());
 
-Blackbox._uuid = Queue._uuid;
+exports = module.exports = Blackbox;
 
-module.exports = Blackbox;
+if(process && process.env && (process.env.BLACKBOX_DEV || process.env.BLACKBOX_COV)) {
+  exports.Storage = Storage;
+  exports.Queue = Queue
+  exports.Message = Message;
+  exports.JqueryBackend = JqueryBackend;
+}
 };
 require.modules[0]['blackbox/jquery_backend.js'] = function(module, exports, require){var JqueryBackend = (function() {
 
@@ -148,14 +153,23 @@ require.modules[0]['blackbox/queue.js'] = function(module, exports, require){var
 
 var Queue = (function() {
 
-  function Queue() {
+  function Queue(options) {
+    this.options = options || {};
+    this.size = this.options.size || 1000;
     this.messages = [];
     this.length = 0;
+    this.index = 0;
     this.id = uuid();
   }
 
   Queue.prototype.push = function(message) {
-    this.messages.push(message);
+    if(this.index >= this.size) {
+      this.index = 0;
+      this.messages.splice(this.index, 1, message);
+    } else {
+      this.messages.splice(this.index, 1, message);
+      this.index++;
+    }
     this.length = this.messages.length;
     this.storage = new Storage('blackbox');
     this.storage.set(this.id, this.messages);
@@ -177,59 +191,19 @@ var uuid = function() {
   return [(new Date()).valueOf(), Math.random()*0x100000000].join(':');
 };
 
-Queue._uuid = function(backend) {
-  if(backend) {
-    uuid = backend;
-  } else {
-    return uuid;
-  }
-};
+if(process && process.env && (process.env.BLACKBOX_DEV || process.env.BLACKBOX_COV)) {
+  Queue._uuid = function(backend) {
+    if(backend) {
+      uuid = backend;
+    } else {
+      return uuid;
+    }
+  };
+}
 
 module.exports = Queue;
 };
 require.modules[0]['blackbox/storage.js'] = function(module, exports, require){var win = require('window');
-
-var Storage = (function() {
-
-  function Storage(name) { this.name = name; }
-
-  Storage.prototype.set = function(key, value) {
-    var stored = win.localStorage.getItem(this.name);
-    if(stored) {
-      stored = JSON.parse(stored);
-    } else {
-      stored = {};
-    }
-    stored[key] = value;
-    win.localStorage.setItem(this.name, JSON.stringify(stored));
-  };
-
-  Storage.prototype.del = function(key) {
-    var stored = win.localStorage.getItem(this.name);
-    if(stored) {
-      stored = JSON.parse(stored);
-      delete stored[key];
-      win.localStorage.setItem(this.name, JSON.stringify(stored));
-    }
-  };
-
-  Storage.prototype.all = function() {
-    var stored = win.localStorage.getItem(this.name);
-    if(stored) {
-      stored = JSON.parse(stored);
-      return stored;
-    } else {
-      return {};
-    }
-  };
-
-  return Storage;
-
-}());
-
-module.exports = Storage;
-};
-require.modules[0]['storage.js'] = function(module, exports, require){var win = require('window');
 
 var Storage = (function() {
 

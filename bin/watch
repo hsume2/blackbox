@@ -11,5 +11,5 @@ new Glue()
   .main('blackbox.js')
   .export('blackbox')
   .watch(function (err, txt) {
-    fs.writeFile('./blackbox.js', txt);
+    fs.writeFile('./dist/blackbox.js', txt);
   });
