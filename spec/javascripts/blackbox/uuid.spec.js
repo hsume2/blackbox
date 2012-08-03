@@ -12,8 +12,10 @@ describe('uuid', function(){
 
   describe('generation', function(){
 
-    it('should return RFC4122 compatible string', function() {
-      expect(this.uuid()).to.have.length(36);
+    it('should return relatively unique string', function() {
+      var date = (new Date()).valueOf();
+      var dateLength = date.toString().length;
+      expect(this.uuid()).to.match(new RegExp("[0-9]{" + dateLength + "}:[0-9]{9,10}"));
     });
 
   });

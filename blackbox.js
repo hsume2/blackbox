@@ -3,6 +3,7 @@ require.modules[0]["jquery"] = { exports: window.jQuery };
 require.modules[0]["window"] = { exports: window };
 require.modules[0]['blackbox.js'] = function(module, exports, require){var Storage = require('./blackbox/storage');
 var Queue = require('./blackbox/queue');
+var Message = require('./blackbox/message');
 var JqueryBackend = require('./blackbox/jquery_backend');
 
 var Blackbox = (function() {
@@ -14,12 +15,12 @@ var Blackbox = (function() {
   }
 
   Blackbox.prototype.write = function(str) {
-    this.queue.push(str);
+    this.queue.push(String(str));
     this.trigger();
   };
 
   Blackbox.prototype.writeMeta = function(name, level, args) {
-    this.queue.push([name, level, args]);
+    this.queue.push(new Message(name, level, args));
     this.trigger();
   };
 
@@ -72,7 +73,11 @@ var Blackbox = (function() {
       var value = all[key];
       for (var i = 0; i < value.length; i++) {
         var message = value[i];
-        messages.push(message);
+        if(message === Object(message)) {
+          messages.push(Message.fromObject(message));
+        } else {
+          messages.push(message);
+        }
       }
     }
 
@@ -121,9 +126,25 @@ require.modules[0]['blackbox/jquery_backend.js'] = function(module, exports, req
 
 module.exports = JqueryBackend;
 };
-require.modules[0]['blackbox/queue.js'] = function(module, exports, require){var uuid = require('../vendor/uuid');
+require.modules[0]['blackbox/message.js'] = function(module, exports, require){var Message = (function() {
 
-var Storage = require('./storage');
+  function Message(name, level, args) {
+    this.name = name;
+    this.level = level;
+    this.args = args;
+  }
+
+  Message.fromObject = function(object) {
+    return new Message(object.name, object.level, object.args);
+  };
+
+  return Message;
+
+}());
+
+module.exports = Message;
+};
+require.modules[0]['blackbox/queue.js'] = function(module, exports, require){var Storage = require('./storage');
 
 var Queue = (function() {
 
@@ -133,8 +154,8 @@ var Queue = (function() {
     this.id = uuid();
   }
 
-  Queue.prototype.push = function(str) {
-    this.messages.push(str);
+  Queue.prototype.push = function(message) {
+    this.messages.push(message);
     this.length = this.messages.length;
     this.storage = new Storage('blackbox');
     this.storage.set(this.id, this.messages);
@@ -152,6 +173,10 @@ var Queue = (function() {
 
 }());
 
+var uuid = function() {
+  return [(new Date()).valueOf(), Math.random()*0x100000000].join(':');
+};
+
 Queue._uuid = function(backend) {
   if(backend) {
     uuid = backend;
@@ -165,6 +190,7 @@ module.exports = Queue;
 require.modules[0]['blackbox/storage.js'] = function(module, exports, require){var win = require('window');
 
 var Storage = (function() {
+
   function Storage(name) { this.name = name; }
 
   Storage.prototype.set = function(key, value) {
@@ -198,6 +224,7 @@ var Storage = (function() {
   };
 
   return Storage;
+
 }());
 
 module.exports = Storage;
@@ -243,82 +270,6 @@ var Storage = (function() {
 }());
 
 module.exports = Storage;
-};
-require.modules[0]['vendor/uuid.js'] = function(module, exports, require){var uuid = (function() {
-  /*
-  * Generate a RFC4122(v4) UUID
-  *
-  * Documentation at https://github.com/broofa/node-uuid
-  */
-
-  // Use node.js Buffer class if available, otherwise use the Array class
-  var BufferClass = typeof(Buffer) == 'function' ? Buffer : Array;
-
-  // Buffer used for generating string uuids
-  var _buf = new BufferClass(16);
-
-  // Cache number <-> hex string for octet values
-  var toString = [];
-  var toNumber = {};
-  for (var i = 0; i < 256; i++) {
-    toString[i] = (i + 0x100).toString(16).substr(1);
-    toNumber[toString[i]] = i;
-  }
-
-  function unparse(buf) {
-    var tos = toString, b = buf;
-    return tos[b[0]] + tos[b[1]] + tos[b[2]] + tos[b[3]] + '-' +
-           tos[b[4]] + tos[b[5]] + '-' +
-           tos[b[6]] + tos[b[7]] + '-' +
-           tos[b[8]] + tos[b[9]] + '-' +
-           tos[b[10]] + tos[b[11]] + tos[b[12]] +
-           tos[b[13]] + tos[b[14]] + tos[b[15]];
-  }
-
-  var ff = 0xff;
-
-  var rnds = new Array(4);
-
-  function uuid(fmt, buf, offset) {
-    var b = fmt != 'binary' ? _buf : (buf ? buf : new BufferClass(16));
-    var i = buf && offset || 0;
-
-    rnds[0] = Math.random()*0x100000000;
-    rnds[1] = Math.random()*0x100000000;
-    rnds[2] = Math.random()*0x100000000;
-    rnds[3] = Math.random()*0x100000000;
-
-    var r = rnds[0];
-    b[i++] = r & ff;
-    b[i++] = r>>>8 & ff;
-    b[i++] = r>>>16 & ff;
-    b[i++] = r>>>24 & ff;
-    r = rnds[1];
-    b[i++] = r & ff;
-    b[i++] = r>>>8 & ff;
-    b[i++] = r>>>16 & 0x0f | 0x40; // See RFC4122 sect. 4.1.3
-    b[i++] = r>>>24 & ff;
-    r = rnds[2];
-    b[i++] = r & 0x3f | 0x80; // See RFC4122 sect. 4.4
-    b[i++] = r>>>8 & ff;
-    b[i++] = r>>>16 & ff;
-    b[i++] = r>>>24 & ff;
-    r = rnds[3];
-    b[i++] = r & ff;
-    b[i++] = r>>>8 & ff;
-    b[i++] = r>>>16 & ff;
-    b[i++] = r>>>24 & ff;
-
-    return fmt === undefined ? unparse(b) : b;
-  }
-
-  uuid.unparse = unparse;
-  uuid.BufferClass = BufferClass;
-
-  return uuid;
-}());
-
-module.exports = uuid;
 };
 blackbox = require('blackbox.js');
 }());

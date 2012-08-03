@@ -88,9 +88,9 @@ describe('Blackbox', function(){
     it('should push to queue', function() {
       var sut = new blackbox();
       sut.writeMeta('voice', 'info', ['#login', { user: 11 }]);
-      expect(sut.queue.messages[0][0]).to.equal('voice');
-      expect(sut.queue.messages[0][1]).to.equal('info');
-      expect(sut.queue.messages[0][2]).to.deep.equal(['#login', { user: 11 }]);
+      expect(sut.queue.messages[0].name).to.equal('voice');
+      expect(sut.queue.messages[0].level).to.equal('info');
+      expect(sut.queue.messages[0].args).to.deep.equal(['#login', { user: 11 }]);
     });
 
     it('should persist queue in localStorage', function() {
@@ -99,7 +99,7 @@ describe('Blackbox', function(){
       sut.writeMeta('voice', 'info', ['#logout']);
 
       assert.equal(window.localStorage.getItem('blackbox'), JSON.stringify({
-        'this-is-a-uniqe-id': [["voice","info",["#login"]],["voice","info",["#logout"]]]
+        'this-is-a-uniqe-id': [{"name":"voice","level":"info","args":["#login"]},{"name":"voice","level":"info","args":["#logout"]}]
       }));
     });
 
@@ -230,6 +230,7 @@ describe('Blackbox', function(){
 
   });
 
+  // TODO: This should expect post on backend. Then we can assert message are Message objects
   describe('#send()', function() {
 
     before(function() {
@@ -250,7 +251,7 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: ['event-1', 'event-2']
+          payload: ['event-1', 'event-2', {"name":"voice","level":"info","args":["#login",{"user":11}]}]
         }),
         dataType: "json",
         type: "POST",
@@ -261,11 +262,12 @@ describe('Blackbox', function(){
 
       sut.write('event-1');
       sut.write('event-2');
+      sut.writeMeta('voice', 'info', ['#login', { user: 11 }]);
 
       sut.send();
 
       // Asserts successful flush clears queue
-      expect(sut.queue).to.have.length(2);
+      expect(sut.queue).to.have.length(3);
       doneSpy.callArg(0);
       expect(sut.queue).to.have.length(0);
 
@@ -279,6 +281,7 @@ describe('Blackbox', function(){
 
   });
 
+  // TODO: This should expect post on backend. Then we can assert message are Message objects
   describe('#sendFromStorage()', function() {
 
     before(function() {
@@ -299,7 +302,7 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: ['event-1', 'event-2']
+          payload: ['event-1', 'event-2', {"name":"voice","level":"info","args":["#login"]}]
         }),
         dataType: "json",
         type: "POST",
@@ -310,7 +313,8 @@ describe('Blackbox', function(){
 
       window.localStorage.setItem('blackbox', JSON.stringify({
         'this-is-a-uniqe-id': ['event-1'],
-        'this-is-another-unique-id': ['event-2']
+        'this-is-another-unique-id': ['event-2'],
+        'this-is-a-meta-message': [{"name":"voice","level":"info","args":["#login"]}]
       }));
 
       sut.sendFromStorage();
