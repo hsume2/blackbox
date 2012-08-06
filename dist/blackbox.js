@@ -10,7 +10,7 @@ var Blackbox = (function() {
 
   function Blackbox(options) {
     this.options = options || {};
-    this.timeout = this.options.timeout || 5000;
+    this.timeout = this.options.timeout*1000 || 5000;
     this.queue = new Queue();
     this._isFormatted = this.options.isFormatted || false;
   }
@@ -100,11 +100,14 @@ if(typeof(process) !== 'undefined' && process && process.env && (process.env.BLA
   exports.Queue = Queue
   exports.Message = Message;
   exports.JqueryBackend = JqueryBackend;
+  exports.SafeJSON = require('./blackbox/safe_json');
 }
 
 exports.Minilog = require('./vendor/minilog');
 };
-require.modules[0]['blackbox/jquery_backend.js'] = function(module, exports, require){var JqueryBackend = (function() {
+require.modules[0]['blackbox/jquery_backend.js'] = function(module, exports, require){var SafeJSON = require('./safe_json');
+
+var JqueryBackend = (function() {
 
   function JqueryBackend(options) {
     this.options = options || {};
@@ -119,7 +122,7 @@ require.modules[0]['blackbox/jquery_backend.js'] = function(module, exports, req
       url: this.url,
       type: 'POST',
       contentType: 'application/json',
-      data: JSON.stringify({ logs: messages }),
+      data: SafeJSON.stringify({ logs: messages }),
       dataType: 'json'
     });
   };
@@ -203,7 +206,31 @@ if(typeof(process) !== 'undefined' && process && process.env && (process.env.BLA
 
 module.exports = Queue;
 };
+require.modules[0]['blackbox/safe_json.js'] = function(module, exports, require){var SafeJSON = {
+  stringify: function() {
+    var args = Array.prototype.slice.apply(arguments);
+    var value = args[0];
+    var oldtoJSON = Array.prototype.toJSON;
+    Array.prototype.toJSON = null;
+    try {
+      var result = this._stringify(value);
+    } catch(e) {
+      Array.prototype.toJSON = oldtoJSON;
+      throw(e);
+    }
+    Array.prototype.toJSON = oldtoJSON;
+    return result;
+  },
+
+  _stringify: function(value) {
+    return JSON.stringify(value);
+  }
+};
+
+module.exports = SafeJSON;
+};
 require.modules[0]['blackbox/storage.js'] = function(module, exports, require){var win = require('window');
+var SafeJSON = require('./safe_json');
 
 var Storage = (function() {
 
@@ -217,7 +244,7 @@ var Storage = (function() {
       stored = {};
     }
     stored[key] = value;
-    win.localStorage.setItem(this.name, JSON.stringify(stored));
+    win.localStorage.setItem(this.name, SafeJSON.stringify(stored));
   };
 
   Storage.prototype.del = function(key) {
@@ -225,7 +252,7 @@ var Storage = (function() {
     if(stored) {
       stored = JSON.parse(stored);
       delete stored[key];
-      win.localStorage.setItem(this.name, JSON.stringify(stored));
+      win.localStorage.setItem(this.name, SafeJSON.stringify(stored));
     }
   };
 

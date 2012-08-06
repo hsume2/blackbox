@@ -28,7 +28,7 @@ describe('Blackbox', function(){
     });
 
     it('should have custom timeout', function() {
-      var sut = new blackbox({ timeout: 2400 });
+      var sut = new blackbox({ timeout: 2.4 });
       assert.equal(sut.timeout, 2400);
     });
 
