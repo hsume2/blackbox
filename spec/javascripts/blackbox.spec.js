@@ -74,7 +74,7 @@ describe('Blackbox', function(){
 
   });
 
-  describe('#writeMeta()', function(){
+  describe('#format()', function(){
 
     before(function() {
       this.uuid = blackbox.Queue._uuid();
@@ -87,19 +87,20 @@ describe('Blackbox', function(){
 
     it('should push to queue', function() {
       var sut = new blackbox();
-      sut.writeMeta('voice', 'info', ['#login', { user: 11 }]);
-      expect(sut.queue.messages[0].name).to.equal('voice');
-      expect(sut.queue.messages[0].level).to.equal('info');
-      expect(sut.queue.messages[0].args).to.deep.equal(['#login', { user: 11 }]);
+      sut.format('voice', 'info', ['#login', { user: 11 }]);
+      var message = sut.queue.messages[0];
+      expect(message[0]).to.equal('voice');
+      expect(message[1]).to.equal('info');
+      expect(message[2]).to.deep.equal(['#login', { user: 11 }]);
     });
 
     it('should persist queue in localStorage', function() {
       var sut = new blackbox();
-      sut.writeMeta('voice', 'info', ['#login']);
-      sut.writeMeta('voice', 'info', ['#logout']);
+      sut.format('voice', 'info', ['#login']);
+      sut.format('voice', 'info', ['#logout']);
 
       assert.equal(window.localStorage.getItem('blackbox'), JSON.stringify({
-        'this-is-a-uniqe-id': [{"name":"voice","level":"info","args":["#login"]},{"name":"voice","level":"info","args":["#logout"]}]
+        'this-is-a-uniqe-id': [["voice","info",["#login"]],["voice","info",["#logout"]]]
       }));
     });
 
@@ -109,7 +110,7 @@ describe('Blackbox', function(){
 
       sinon.assert.notCalled(triggerStub);
 
-      sut.writeMeta('voice', 'info', ['#login']);
+      sut.format('voice', 'info', ['#login']);
 
       sinon.assert.calledOnce(triggerStub);
     });
@@ -242,7 +243,7 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: ['event-1', 'event-2', {"name":"voice","level":"info","args":["#login",{"user":11}]}]
+          logs: ["event-1", "event-2", ["voice", "info", ["#login", { user: 11 }]]]
         }),
         dataType: "json",
         type: "POST",
@@ -253,7 +254,7 @@ describe('Blackbox', function(){
 
       sut.write('event-1');
       sut.write('event-2');
-      sut.writeMeta('voice', 'info', ['#login', { user: 11 }]);
+      sut.format('voice', 'info', ['#login', { user: 11 }]);
 
       sut.send();
 
@@ -284,7 +285,7 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: ['event-1', 'event-2', {"name":"voice","level":"info","args":["#login"]}]
+          logs: ["event-1", "event-2", ["voice", "info", ["#login"]]]
         }),
         dataType: "json",
         type: "POST",
@@ -296,7 +297,7 @@ describe('Blackbox', function(){
       window.localStorage.setItem('blackbox', JSON.stringify({
         'this-is-a-uniqe-id': ['event-1'],
         'this-is-another-unique-id': ['event-2'],
-        'this-is-a-meta-message': [{"name":"voice","level":"info","args":["#login"]}]
+        'this-is-a-meta-message': [["voice", "info", ["#login"]]]
       }));
 
       sut.sendFromStorage();
@@ -331,7 +332,7 @@ describe('Blackbox', function(){
       var expectation = sinon.mock(fakeQuery).expects('ajax').withArgs({
         contentType: "application/json",
         data: JSON.stringify({
-          payload: ['event-1', 'event-2']
+          logs: ["event-1", "event-2"]
         }),
         dataType: "json",
         type: "POST",
@@ -381,7 +382,7 @@ describe('Blackbox', function(){
           assert.equal(request.requestHeaders['X-Requested-With'], 'XMLHttpRequest');
 
           assert.equal(request.requestBody, JSON.stringify({
-            payload: ['event-1', 'event-2']
+            logs: ['event-1', 'event-2']
           }));
 
           this.sandbox.server.respondWith([200, {}, '']);
@@ -416,5 +417,19 @@ describe('Blackbox', function(){
     });
 
   }
+
+  describe('#isFormatted', function(){
+
+    it('should be false by default', function() {
+      var sut = new blackbox();
+      expect(sut._isFormatted).to.be.false;
+    });
+
+    it('should be true if set', function() {
+      var sut = new blackbox({ isFormatted: true });
+      expect(sut._isFormatted).to.be.true;
+    });
+
+  });
 
 });

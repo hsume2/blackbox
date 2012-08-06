@@ -15,7 +15,7 @@ test-watch:
 	@BLACKBOX_DEV=1 ./node_modules/.bin/mocha --ui bdd -R list -w spec/javascripts/*.spec.js spec/javascripts/**/*.spec.js
 
 coverage:
-	@jscoverage --no-highlight lib lib-cov
+	@jscoverage --no-highlight --no-instrument=vendor lib lib-cov
 	@BLACKBOX_COV=1 ./node_modules/.bin/mocha --ui bdd -R html-cov spec/javascripts/*.spec.js spec/javascripts/**/*.spec.js > coverage.html
 	@rm -rf lib-cov
 	@echo 'Wrote ./coverage.html'

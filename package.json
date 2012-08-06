@@ -5,6 +5,7 @@
   "author": "Henry Hsu <hhsu@zendesk.com>",
   "main": "./index.js",
   "dependencies": {
+    "minilog": "git+ssh://git@github.com:mixu/minilog.git#599f1718d1"
   },
   "devDependencies": {
     "mocha": "1.3.x",
