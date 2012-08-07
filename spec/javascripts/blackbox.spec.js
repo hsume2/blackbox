@@ -128,6 +128,45 @@ describe('Blackbox', function(){
 
   });
 
+  describe('#formatWithMeta()', function(){
+
+    beforeEach(function() {
+      var format = blackbox.formatWithMeta(function(name, level, args) {
+        return {
+          a: 1,
+          b: 2,
+          c: (new Date()).valueOf()
+        };
+      });
+      this.sut = new blackbox().format(format);
+    });
+
+    it('should push to queue with meta format', function() {
+      this.sut.format('voice', 'info', ['#login', { user: 11 }]);
+      var message = this.sut.queue.messages[0];
+      expect(message[0]).to.equal('voice');
+      expect(message[1]).to.equal('info');
+      expect(message[2]).to.deep.equal(['#login', { user: 11, b: 2, a: 1, c: 0 }]);
+    });
+
+    it('should push to queue with default meta even if no args', function() {
+      this.sut.format('voice', 'info');
+      var message = this.sut.queue.messages[0];
+      expect(message[0]).to.equal('voice');
+      expect(message[1]).to.equal('info');
+      expect(message[2]).to.deep.equal([{ b: 2, a: 1, c: 0 }]);
+    });
+
+    it('should push to queue with just default meta if no meta arg', function() {
+      this.sut.format('voice', 'info', ['#login']);
+      var message = this.sut.queue.messages[0];
+      expect(message[0]).to.equal('voice');
+      expect(message[1]).to.equal('info');
+      expect(message[2]).to.deep.equal(['#login', { b: 2, a: 1, c: 0 }]);
+    });
+
+  });
+
   describe('#clearQueue()', function() {
 
     before(function() {

@@ -114,6 +114,22 @@ var Blackbox = (function() {
 
   Blackbox.extend = require('./vendor/extend');
 
+  Blackbox.formatWithMeta = function(defaultMetaCallback) {
+    return function(name, level, args) {
+      var _meta = defaultMetaCallback();
+
+      if(!args) args = [];
+      var meta = args[args.length - 1];
+      if(meta && meta === Object(meta)) {
+        args.pop();
+        _meta = Blackbox.extend(meta, _meta);
+      }
+      args.push(_meta);
+
+      return [name, level, args];
+    };
+  };
+
   return Blackbox;
 
 }());
