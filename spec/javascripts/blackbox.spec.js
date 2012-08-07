@@ -115,6 +115,17 @@ describe('Blackbox', function(){
       sinon.assert.calledOnce(triggerStub);
     });
 
+    it('should push to queue with custom format', function() {
+      var sut = new blackbox().format(function(name, level, args) {
+        return ['testing', 'info', ['#testing']];
+      });
+      sut.format('voice', 'info', ['#login', { user: 11 }]);
+      var message = sut.queue.messages[0];
+      expect(message[0]).to.equal('testing');
+      expect(message[1]).to.equal('info');
+      expect(message[2]).to.deep.equal(['#testing']);
+    });
+
   });
 
   describe('#clearQueue()', function() {

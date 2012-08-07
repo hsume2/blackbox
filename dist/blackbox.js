@@ -20,7 +20,30 @@ var Blackbox = (function() {
     this.trigger();
   };
 
-  Blackbox.prototype.format = function(name, level, args) {
+  Blackbox.prototype.format = function() {
+    var args = Array.prototype.slice.call(arguments);
+    if(this._setFormat.apply(this, args)) {
+      return this;
+    }
+
+    this._writeFormat.apply(this, args);
+  };
+
+  Blackbox.prototype._setFormat = function() {
+    var args = Array.prototype.slice.call(arguments);
+    if(args.length == 1 && Object.prototype.toString.call(args[0]) == '[object Function]') {
+      this.options.format = args[0];
+      return true;
+    }
+
+    return false;
+  };
+
+  Blackbox.prototype._writeFormat = function(name, level, args) {
+    if(Object.prototype.toString.call(this.options.format) == '[object Function]') {
+      var result = this.options.format(name, level, args);
+      name = result[0], level = result[1], args = result[2];
+    }
     this.queue.push(new Message(name, level, args));
     this.trigger();
   };
@@ -88,6 +111,8 @@ var Blackbox = (function() {
   };
 
   Blackbox.prototype._post = function(messages) { return this.backend.post(messages); };
+
+  Blackbox.extend = require('./vendor/extend');
 
   return Blackbox;
 
@@ -271,6 +296,27 @@ var Storage = (function() {
 }());
 
 module.exports = Storage;
+};
+require.modules[0]['vendor/extend.js'] = function(module, exports, require){var extend = function(target) {
+  var i = 1, length = arguments.length, source;
+  for ( ; i < length; i++ ) {
+    if ( (source = arguments[i]) != undefined ) {
+      Object.getOwnPropertyNames(source).forEach(function(k){
+        var d = Object.getOwnPropertyDescriptor(source, k) || {value:source[k]};
+        if (d.get) {
+          target.__defineGetter__(k, d.get);
+          if (d.set) target.__defineSetter__(k, d.set);
+        }
+        else if (target !== d.value) {
+          target[k] = d.value;
+        }
+      });
+    }
+  }
+  return target;
+};
+
+module.exports = extend;
 };
 require.modules[0]['vendor/minilog.js'] = function(module, exports, require){var window = require('window');
 
