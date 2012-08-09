@@ -1,0 +1,47 @@
+<html>
+<head>
+  <title>Blackbox Tests</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="stylesheet" href="mocha.css" />
+  <script src="jquery-1.7.1.js"></script>
+  <script src="json2.js"></script>
+  <script src="minilog.js"></script>
+  <script src="blackbox.js"></script>
+  <script>
+    window.localStorage.clear();
+
+    $(document).ready(function() {
+      var log = Minilog('suite');
+
+      var Textarea = function() {
+        var dom = $("#console");
+        var storage = $("#localstorage");
+        var txt = '';
+
+        this.write = function(str) {
+          txt += str + '\n';
+          dom.val(txt);
+          setTimeout(function() {
+            storage.val(JSON.stringify(window.localStorage));
+          }, 1);
+        };
+      };
+
+      Minilog.pipe(new Textarea());
+      Minilog.pipe(new blackbox({ timeout: 2, isFormatted: true }).format(blackbox.formatWithMeta(function(name, level, args) {
+        return {
+          t: (new Date()).valueOf()
+        };
+      })).jquery({ url: '/node/log' }));
+
+      log.info('#count');
+      log.info('#count');
+      log.info('#meta', { 1: 2 });
+    });
+  </script>
+</head>
+<body>
+  <textarea id="console" rows="20" cols="60"></textarea>
+  <textarea id="localstorage" rows="20" cols="60"></textarea>
+</body>
+</html>

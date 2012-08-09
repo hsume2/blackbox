@@ -5,14 +5,14 @@
   "author": "Henry Hsu <hhsu@zendesk.com>",
   "main": "./index.js",
   "dependencies": {
-    "minilog": "git+ssh://git@github.com:mixu/minilog.git#599f1718d1"
   },
   "devDependencies": {
     "mocha": "1.3.x",
     "chai": "1.2.x",
     "sinon": "1.4.x",
     "gluejs": "git+ssh://git@github.com:mixu/gluejs.git#master",
-    "localStorage": "1.0.x"
+    "localStorage": "1.0.x",
+    "minilog": "git+ssh://git@github.com:mixu/minilog.git#master"
   },
   "engine": "node >= 0.4.111"
 }

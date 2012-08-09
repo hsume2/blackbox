@@ -95,7 +95,7 @@ var Blackbox = (function() {
 
     for(var key in all) {
       var value = all[key];
-      for (var i = 0; i < value.length; i++) {
+      for(var i = 0; i < value.length; i++) {
         var message = value[i];
         messages.push(message);
       }
@@ -112,7 +112,7 @@ var Blackbox = (function() {
 
   Blackbox.prototype._post = function(messages) { return this.backend.post(messages); };
 
-  Blackbox.extend = require('./vendor/extend');
+  Blackbox.merge = require('./vendor/merge');
 
   Blackbox.formatWithMeta = function(defaultMetaCallback) {
     return function(name, level, args) {
@@ -122,7 +122,7 @@ var Blackbox = (function() {
       var meta = args[args.length - 1];
       if(meta && meta === Object(meta)) {
         args.pop();
-        _meta = Blackbox.extend(meta, _meta);
+        _meta = Blackbox.merge(meta, _meta);
       }
       args.push(_meta);
 
@@ -311,26 +311,21 @@ var Storage = (function() {
 
 module.exports = Storage;
 };
-require.modules[0]['vendor/extend.js'] = function(module, exports, require){var extend = function(target) {
-  var i = 1, length = arguments.length, source;
-  for ( ; i < length; i++ ) {
-    if ( (source = arguments[i]) != undefined ) {
-      Object.getOwnPropertyNames(source).forEach(function(k){
-        var d = Object.getOwnPropertyDescriptor(source, k) || {value:source[k]};
-        if (d.get) {
-          target.__defineGetter__(k, d.get);
-          if (d.set) target.__defineSetter__(k, d.set);
-        }
-        else if (target !== d.value) {
-          target[k] = d.value;
-        }
-      });
+require.modules[0]['vendor/merge.js'] = function(module, exports, require){var merge = function(target) {
+  var args = Array.prototype.slice.call(arguments);
+  for (var i = 1; i < args.length; i++) {
+    var source = args[i];
+    if(source !== undefined ) {
+      for(var key in source) {
+        if(!source.hasOwnProperty(key)) continue;
+        target[key] = source[key];
+      }
     }
   }
   return target;
 };
 
-module.exports = extend;
+module.exports = merge;
 };
 blackbox = require('blackbox.js');
 }());
